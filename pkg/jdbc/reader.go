@@ -223,3 +223,92 @@ func MapScanConcurrent(setter *Reader[*sql.Rows], converter func(value interface
 
 	return utils.ConcurrentF(setter.ctx, consumer, producer)
 }
+
+func mapScanConcurrentWithBuffer(setter *Reader[*sql.Rows], bufSize int, converter func(value interface{}, columnType string) (interface{}, error), OnMessage abstract.BackfillMsgFn, columnSizer func(colType *sql.ColumnType) func(v any) int64) error {
+	valuesCh := make(chan []any, bufSize)
+
+	var (
+		columns   []string
+		colTypes  []*sql.ColumnType
+		scanDests []any
+	)
+
+	producer := func(ctx context.Context) error {
+		defer close(valuesCh)
+
+		return setter.Capture(func(rows *sql.Rows) error {
+			if columns == nil {
+				var metaErr error
+				columns, colTypes, metaErr = getColumnMetadata(rows)
+				if metaErr != nil {
+					return metaErr
+				}
+				scanDests = make([]any, len(columns))
+				for i := range scanDests {
+					scanDests[i] = new(any)
+				}
+			}
+
+			if err := rows.Scan(scanDests...); err != nil {
+				return err
+			}
+
+			vals := make([]any, len(columns))
+			for i := range scanDests {
+				vals[i] = *(scanDests[i].(*any))
+			}
+
+			select {
+			case <-ctx.Done():
+				return nil
+			case valuesCh <- vals:
+				return nil
+			}
+		})
+	}
+
+	consumer := func(ctx context.Context) error {
+		var sizeOf map[string]func(v any) int64
+		for vals := range valuesCh {
+			if sizeOf == nil {
+				sizeOf = make(map[string]func(v any) int64, len(columns))
+				for i, col := range columns {
+					sizeOf[col] = columnSizer(colTypes[i])
+				}
+			}
+
+			var rowBytes int64
+			record := make(map[string]any, len(columns))
+			for i, col := range columns {
+				rawData := vals[i]
+				if rawData != nil {
+					rowBytes += sizeOf[col](rawData)
+				}
+				if converter == nil {
+					record[col] = rawData
+					continue
+				}
+
+				conv, err := normalizeDataTypeAndConvert(rawData, colTypes[i], converter)
+				if err != nil {
+					return fmt.Errorf("failed to convert value for column %s: %s", col, err)
+				}
+				record[col] = conv
+			}
+
+			if err := OnMessage(ctx, record, rowBytes); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	return utils.ConcurrentF(setter.ctx, consumer, producer)
+}
+
+// MapScanConcurrentBuffered runs MapScanConcurrent with a 512-slot buffer.
+// This allows the database fetcher (producer) to stay ahead of the record processor
+// (consumer) without waiting, which boosts overall throughput.
+func MapScanConcurrentBuffered(setter *Reader[*sql.Rows], converter func(value interface{}, columnType string) (interface{}, error), OnMessage abstract.BackfillMsgFn, columnSizer func(colType *sql.ColumnType) func(v any) int64) error {
+	return mapScanConcurrentWithBuffer(setter, 512, converter, OnMessage, columnSizer)
+}
