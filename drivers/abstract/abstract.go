@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -186,6 +187,7 @@ func (a *AbstractDriver) Read(ctx context.Context, pool *destination.WriterPool,
 	// run cdc sync
 	if len(cdcStreams) > 0 {
 		if a.driver.CDCSupported() {
+			a.configureCDCColumns(cdcStreams...)
 			if err := a.RunChangeStream(ctx, pool, cdcStreams...); err != nil {
 				return fmt.Errorf("failed to run change stream: %s", err)
 			}
@@ -218,6 +220,34 @@ func (a *AbstractDriver) Read(ctx context.Context, pool *destination.WriterPool,
 		return fmt.Errorf("error occurred while waiting for connections: %s", err)
 	}
 	return nil
+}
+
+// configureCDCColumns adds CDC-only schema fields immediately before a CDC read.
+// Discover intentionally omits them so changing a stream to incremental or full
+// refresh cannot leak CDC metadata into the destination schema.
+func (a *AbstractDriver) configureCDCColumns(streams ...types.StreamInterface) {
+	if a.driver.Type() == string(constants.Kafka) {
+		return
+	}
+
+	for _, stream := range streams {
+		upsertCDCColumn(stream, constants.CdcTimestamp, types.TimestampMicro)
+		for column, dataType := range a.driver.CDCColumns() {
+			upsertCDCColumn(stream, column, dataType)
+		}
+	}
+}
+
+func upsertCDCColumn(stream types.StreamInterface, column string, dataType types.DataType) {
+	stream.GetStream().UpsertField(column, dataType, true, true)
+
+	selectedColumns := stream.Self().StreamMetadata.SelectedColumns
+	// nil is a legacy catalog and an empty list means "all columns". In both
+	// cases the new schema field is already selected without changing the list.
+	if selectedColumns == nil || len(selectedColumns.Columns) == 0 || slices.Contains(selectedColumns.Columns, column) {
+		return
+	}
+	selectedColumns.Columns = append(selectedColumns.Columns, column)
 }
 
 // waitForBackfillCompletion waits for all backfill processes to complete and processes each completed stream
@@ -329,5 +359,3 @@ func handleWriterCleanup(ctx context.Context, cancel context.CancelFunc, err *er
 		*err = fmt.Errorf("thread[%s]: %s", threadID, *err)
 	}
 }
-
-

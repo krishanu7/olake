@@ -16,6 +16,13 @@ import (
 	"github.com/go-mysql-org/go-mysql/mysql"
 )
 
+func (m *MySQL) CDCColumns() map[string]types.DataType {
+	return map[string]types.DataType{
+		binlog.CDCBinlogFileName: types.String,
+		binlog.CDCBinlogFilePos:  types.Int64,
+	}
+}
+
 func (m *MySQL) prepareBinlogConn(ctx context.Context, mySQLGlobalState MySQLGlobalState, streamsToSync []types.StreamInterface) (*binlog.Connection, error) {
 	// Build TLS config if SSL is configured
 	var tlsConfig *tls.Config

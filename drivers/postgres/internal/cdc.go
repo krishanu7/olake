@@ -16,6 +16,12 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
+func (p *Postgres) CDCColumns() map[string]types.DataType {
+	return map[string]types.DataType{
+		waljs.CDCLSN: types.String,
+	}
+}
+
 func (p *Postgres) prepareWALJSConfig(streams ...types.StreamInterface) (*waljs.Config, error) {
 	if !p.CDCSupport {
 		return nil, fmt.Errorf("invalid call; %s not running in CDC mode", p.Type())

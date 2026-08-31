@@ -8,6 +8,10 @@ import (
 	"github.com/datazip-inc/olake/types"
 )
 
+func (s *S3) CDCColumns() map[string]types.DataType {
+	return nil
+}
+
 // ChangeStreamConfig returns the change stream configuration for S3
 func (s *S3) ChangeStreamConfig() (bool, bool, bool) {
 	return false, false, false

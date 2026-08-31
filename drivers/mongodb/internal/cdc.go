@@ -28,6 +28,12 @@ const (
 
 var ErrIdleTermination = errors.New("change stream terminated due to idle timeout")
 
+func (m *Mongo) CDCColumns() map[string]types.DataType {
+	return map[string]types.DataType{
+		CDCResumeToken: types.String,
+	}
+}
+
 type CDCDocument struct {
 	OperationType            string              `json:"operationType"`
 	FullDocument             map[string]any      `json:"fullDocument"`

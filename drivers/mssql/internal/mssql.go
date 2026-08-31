@@ -289,8 +289,6 @@ func (m *MSSQL) ProduceSchema(ctx context.Context, streamName types.StreamID) (*
 
 	stream.WithSyncMode(types.FULLREFRESH, types.INCREMENTAL)
 	if m.CDCSupported() {
-		stream.UpsertField(CDCStartLSN, types.String, true, true)
-		stream.UpsertField(CDCSeqVal, types.String, true, true)
 		stream.WithSyncMode(types.CDC, types.STRICTCDC)
 	}
 

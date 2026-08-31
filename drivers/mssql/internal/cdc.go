@@ -25,6 +25,13 @@ const (
 	catchUpTimeoutPollMultiplier  = 3
 )
 
+func (m *MSSQL) CDCColumns() map[string]types.DataType {
+	return map[string]types.DataType{
+		CDCStartLSN: types.String,
+		CDCSeqVal:   types.String,
+	}
+}
+
 // CDC capture instance for a table
 type captureInstance struct {
 	schema       string

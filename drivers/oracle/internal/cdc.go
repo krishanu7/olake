@@ -7,6 +7,10 @@ import (
 	"github.com/datazip-inc/olake/types"
 )
 
+func (o *Oracle) CDCColumns() map[string]types.DataType {
+	return nil
+}
+
 // CDC is not supported yet
 
 // PreCDC is called before CDC operation starts

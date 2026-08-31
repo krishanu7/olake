@@ -246,8 +246,6 @@ func (m *MySQL) ProduceSchema(ctx context.Context, streamName types.StreamID) (*
 
 	stream.WithSyncMode(types.FULLREFRESH, types.INCREMENTAL)
 	if m.CDCSupported() {
-		stream.UpsertField(binlog.CDCBinlogFileName, types.String, true, true)
-		stream.UpsertField(binlog.CDCBinlogFilePos, types.Int64, true, true)
 		stream.WithSyncMode(types.CDC, types.STRICTCDC)
 	}
 

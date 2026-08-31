@@ -8,6 +8,10 @@ import (
 	"github.com/datazip-inc/olake/types"
 )
 
+func (d *DB2) CDCColumns() map[string]types.DataType {
+	return nil
+}
+
 // CDC is not supported yet
 func (d *DB2) ChangeStreamConfig() (bool, bool, bool) { return false, false, false }
 

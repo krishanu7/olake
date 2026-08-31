@@ -20,6 +20,10 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+func (k *Kafka) CDCColumns() map[string]types.DataType {
+	return nil
+}
+
 func (k *Kafka) ChangeStreamConfig() (bool, bool, bool) {
 	return false, true, false // parallel change streams supported
 }

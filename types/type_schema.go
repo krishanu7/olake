@@ -136,6 +136,7 @@ func (t *TypeSchema) GetProperty(column string) (bool, *Property) {
 }
 
 func (t *TypeSchema) ToParquet(defaultColumns bool, stream StreamInterface) *parquet.Schema {
+	// keeping default columns parquet schema for backward compatibility for olake columns
 	groupNode := parquet.Group{
 		constants.OlakeID:        parquet.String(),
 		constants.OlakeTimestamp: parquet.Timestamp(parquet.Microsecond),
